@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../build/testapi09.props" />
+</Project>
