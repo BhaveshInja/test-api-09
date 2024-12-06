@@ -1,0 +1,9 @@
+/Users/bhaveshinjamara/Programs/dotnet/testapi09/bin/Publish/testapi09
+/Users/bhaveshinjamara/Programs/dotnet/testapi09/bin/Publish/appsettings.Development.json
+/Users/bhaveshinjamara/Programs/dotnet/testapi09/bin/Publish/appsettings.json
+/Users/bhaveshinjamara/Programs/dotnet/testapi09/bin/Publish/testapi09.dll
+/Users/bhaveshinjamara/Programs/dotnet/testapi09/bin/Publish/testapi09.deps.json
+/Users/bhaveshinjamara/Programs/dotnet/testapi09/bin/Publish/testapi09.runtimeconfig.json
+/Users/bhaveshinjamara/Programs/dotnet/testapi09/bin/Publish/testapi09.pdb
+/Users/bhaveshinjamara/Programs/dotnet/testapi09/bin/Publish/Microsoft.AspNetCore.OpenApi.dll
+/Users/bhaveshinjamara/Programs/dotnet/testapi09/bin/Publish/Microsoft.OpenApi.dll
