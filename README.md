@@ -178,28 +178,6 @@ if (amount <= 0)
   ```
 
 ---
-
-### 3.7. 🧪 Logging and Error Handling in Methods
-
-- Use structured logging:
-  ```csharp
-  _logger.LogInformation("Processing order {OrderId}", order.Id);
-  ```
-
-- Do not swallow exceptions:
-  ```csharp
-  try
-  {
-      await _repository.SaveAsync();
-  }
-  catch (DbUpdateException ex)
-  {
-      _logger.LogError(ex, "Database error");
-      throw new ApplicationException("Could not save order");
-  }
-  ```
-
----
 ## 4. 🗄️ Entity Framework Core Standards
 
 ### 4.1. 🧱 Design Philosophy
