@@ -303,13 +303,30 @@ var orders = await _context.Orders
 
 ### 4.7. 🚀 Performance Best Practices
 
-| Tip                          | Why                                  |
-|-----------------------------|---------------------------------------|
-| Use `.Select()` projection  | Avoid loading unused properties       |
-| Use `.AsNoTracking()`       | Improves read performance             |
-| Index critical columns      | Improves query speed                  |
-| Paginate large collections  | Prevents memory overload              |
-| Avoid client-side evaluation| Prevents runtime crashes              |
+
+| Tip                                      | Explanation                                                      |
+|------------------------------------------|------------------------------------------------------------------|
+| **Use `.AsNoTracking()`**                | Improves performance for read-only queries.                      |
+| **Use `.Select()` projections**          | Reduces amount of data fetched from the database.                |
+| **Use `AsSplitQuery()`**                 | Reduces cartesian explosion in complex `.Include()` queries.     |
+| **Index critical columns**               | Enhances query speed (especially foreign keys, filters, sorts).  |
+| **Paginate results (`.Skip()/.Take()`)** | Limits data retrieval, reducing load and memory usage.           |
+| **Avoid client-side evaluation**         | Prevents unintended query evaluations in memory.                 |
+| **Cache frequently accessed data**       | Use in-memory cache to reduce database hits for read-heavy data. |
+| **Batch operations**                     | Optimize bulk insert/update/delete with batching.                |
+
+### ✅ Example: Using `AsSplitQuery()`
+
+```csharp
+var orders = await _context.Orders
+    .AsNoTracking()
+    .Include(o => o.Items)
+    .Include(o => o.Customer)
+    .AsSplitQuery()
+    .ToListAsync();
+```
+
+*This approach is beneficial for queries involving multiple related entities, minimizing performance impacts caused by large or complex joins.*
 
 ---
 
