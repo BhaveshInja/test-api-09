@@ -30,6 +30,7 @@
 | **Domain**      | Core business rules, domain models, invariants                        |
 | **Infrastructure** | Implements repositories, EF Core DbContext, external service calls  |
 | **Shared**      | Reusable components, constants, utilities, common exceptions          |
+| **CrossCutting** | Logging, caching, validation, and other shared concerns              |
 
 ---
 
