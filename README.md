@@ -353,36 +353,376 @@ var users = (from u in _context.Users
 
 ## 5. 🔐 Security & Validation
 
-- Validate all inputs using FluentValidation.
-- Use DTOs, never expose domain entities.
-- Use policy-based authorization in ASP.NET Core.
+### 5.1. ✅ Input Validation
+
+- Perform **all input validation at the API layer**.
+- Use [**FluentValidation**](https://docs.fluentvalidation.net/en/latest/) for clean and testable validation rules.
+- Never trust client-side validation alone.
+
+#### 🔧 Example: Using FluentValidation
+```csharp
+public class CreateUserDtoValidator : AbstractValidator<CreateUserDto>
+{
+    public CreateUserDtoValidator()
+    {
+        RuleFor(x => x.Email).NotEmpty().EmailAddress();
+        RuleFor(x => x.Password).NotEmpty().MinimumLength(8);
+    }
+}
+```
+
+- Register validators in `Program.cs`:
+```csharp
+builder.Services.AddValidatorsFromAssemblyContaining<CreateUserDtoValidator>();
+```
+
+---
+
+### 5.2. 🚫 Never Expose Domain Entities
+
+- Do **not expose domain models** directly in API responses or requests.
+- Always use **DTOs** to isolate API contracts from core business logic.
+
+```csharp
+// ❌ Avoid
+public User GetUser(int id) { ... }
+
+// ✅ Recommended
+public UserDto GetUser(int id) { ... }
+```
+
+---
+
+### 5.3. 🔐 Authorization
+
+- Use **ASP.NET Core’s built-in policy-based authorization**.
+- Group sensitive operations under policies, not just roles.
+
+```csharp
+[Authorize(Policy = "RequireAdminRole")]
+public IActionResult DeleteUser(int id) { ... }
+```
+
+- Use claims-based or scope-based checks for flexibility.
+
+---
+
+### 5.4. 🧱 Layered Security Responsibility
+
+| Layer         | Responsibility                          |
+|---------------|------------------------------------------|
+| **API**        | Input validation, authentication, and request shaping |
+| **Application**| Rule enforcement, access checks (e.g., ownership)     |
+| **Domain**     | Invariant enforcement and guard clauses                |
+
+---
+
+### 5.5. ⚠️ Other Security Best Practices
+
+- Do **not log** sensitive values (e.g., passwords, tokens).
+- Use HTTPS across all environments.
+- Enable CSRF protection (for cookie-based apps).
+- Return **problem details** in a structured format without exposing internals.
+- Sanitize input where raw SQL is used (if applicable).
 
 ---
 
 ## 6. 🧪 Unit Testing Guidelines
 
-| Layer           | Type              | Notes                        |
-|-----------------|-------------------|------------------------------|
-| Domain          | Unit tests        | No mocks                     |
-| Application     | Unit tests        | Mock dependencies            |
-| API             | Integration tests | Test HTTP layer              |
-| Infrastructure  | EF tests          | Use InMemory or SQLite       |
+### 6.1. 🎯 Testing Principles
+
+- Focus on **testing behavior**, not implementation.
+- Keep tests **independent**, **repeatable**, and **fast**.
+- Use the **Arrange–Act–Assert** pattern in all tests.
+
+---
+
+### 6.2. 🏗️ Testing Strategy by Layer
+
+| Layer           | Type of Test             | Approach                         |
+|-----------------|--------------------------|----------------------------------|
+| **Domain**      | Unit tests               | Test business logic in isolation |
+| **Application** | Service tests            | Mock repositories and services   |
+| **API**         | Integration tests        | Test controller + middleware     |
+| **Infrastructure** | Integration with EF Core | Use in-memory DB or SQLite       |
+
+---
+
+### 6.3. 🧪 Domain Layer Testing
+
+- No mocks needed.
+- Test logic, rules, and value objects.
+
+```csharp
+[Fact]
+public void TotalAmount_ShouldBeCalculatedCorrectly()
+{
+    var order = new Order(10, 5); // qty * price
+    Assert.Equal(50, order.TotalAmount);
+}
+```
+
+---
+
+### 6.4. 🧪 Application Layer Testing
+
+- Use mocks (e.g., Moq) for dependencies like repositories.
+- Focus on service behavior and orchestration.
+
+```csharp
+[Fact]
+public async Task CreateOrder_ShouldCallRepository()
+{
+    var mockRepo = new Mock<IOrderRepository>();
+    var service = new OrderService(mockRepo.Object, ...);
+
+    await service.CreateOrderAsync(new OrderDto(...));
+
+    mockRepo.Verify(r => r.AddAsync(It.IsAny<Order>()), Times.Once);
+}
+```
+
+---
+
+### 6.5. 🧪 API Layer Testing
+
+- Use `WebApplicationFactory<T>` or `TestServer` to test the full HTTP pipeline.
+- Validate routing, middleware, and controller behavior.
+
+```csharp
+[Fact]
+public async Task GetOrders_ShouldReturn200()
+{
+    var client = _factory.CreateClient();
+    var response = await client.GetAsync("/api/orders");
+    response.EnsureSuccessStatusCode();
+}
+```
+
+---
+
+### 6.6. 🧪 Infrastructure Testing
+
+- Use **EF Core InMemory** or **SQLite in-memory** provider.
+- Validate real persistence logic with real DbContext.
+
+```csharp
+var options = new DbContextOptionsBuilder<AppDbContext>()
+    .UseInMemoryDatabase("TestDb").Options;
+
+using var context = new AppDbContext(options);
+```
+
+---
+
+### 6.7. 🔁 General Best Practices
+
+- Name test methods clearly: `MethodName_State_ExpectedResult`.
+- Avoid shared state between tests.
+- Use `[Theory]` with `[InlineData]` for parameterized testing.
 
 ---
 
 ## 7. ❌ Error Handling
 
-- Use global exception middleware.
-- Return structured responses (with status, detail, traceId).
+### 7.1. 🎯 Principle
+
+- Handle **all exceptions globally** using middleware at the API layer.
+- Avoid `try-catch` blocks in controllers and services unless transforming known exceptions.
+- Return **structured and consistent error responses** (e.g., Problem Details format).
 
 ---
 
-## 8. 📜 Logging Standards (Serilog)
+### 7.2. ⚙️ Global Exception Middleware (Example)
 
-- Use structured logs via Serilog.
-- Log request context with `TraceId`, user info.
-- Avoid logging sensitive data.
-- Use log levels consistently (`Information`, `Error`, `Debug`, etc.)
+```csharp
+public class GlobalExceptionMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger<GlobalExceptionMiddleware> _logger;
+
+    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
+        {
+            await _next(context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unhandled exception occurred.");
+            await HandleExceptionAsync(context, ex);
+        }
+    }
+
+    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+    {
+        var statusCode = exception switch
+        {
+            ArgumentException => StatusCodes.Status400BadRequest,
+            UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
+            KeyNotFoundException => StatusCodes.Status404NotFound,
+            _ => StatusCodes.Status500InternalServerError
+        };
+
+        var errorResponse = new
+        {
+            title = "An error occurred while processing your request.",
+            detail = exception.Message,
+            status = statusCode,
+            traceId = context.TraceIdentifier
+        };
+
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = statusCode;
+
+        return context.Response.WriteAsJsonAsync(errorResponse);
+    }
+}
+```
+
+---
+
+### 7.3. 🛠️ Register Middleware in `Program.cs`
+
+```csharp
+app.UseMiddleware<GlobalExceptionMiddleware>();
+```
+
+---
+
+### 7.4. 🔁 Custom Exceptions
+
+- Define custom exceptions for application-specific rules:
+```csharp
+public class BusinessRuleViolationException : Exception
+{
+    public BusinessRuleViolationException(string message) : base(message) {}
+}
+```
+
+- Handle custom exceptions in the middleware:
+```csharp
+case BusinessRuleViolationException:
+    statusCode = StatusCodes.Status422UnprocessableEntity;
+    break;
+```
+
+---
+
+### 7.5. 📦 Structured Error Response Format
+
+```json
+{
+  "title": "An error occurred while processing your request.",
+  "detail": "Customer ID cannot be null.",
+  "status": 400,
+  "traceId": "00-abcd1234efgh5678"
+}
+```
+
+---
+
+### 7.6. 🛡️ Best Practices
+
+| ✅ Do                          | ❌ Avoid                        |
+|-------------------------------|--------------------------------|
+| Log exceptions with context   | Logging stack traces in responses |
+| Include trace ID in response  | Sending raw exception messages |
+| Transform known exceptions    | Catching general `Exception` everywhere |
+| Use `ProblemDetails` spec     | Hard-coded error strings       |
+
+
+---
+
+## 8. 📜 Logging Standards (Using Serilog)
+
+### 8.1. 🎯 Logging Philosophy
+
+- Logging must be:
+  - **Structured** – JSON format for easy parsing and searchability.
+  - **Centralized** – Use Serilog sinks for console, file, and optional external tools like Seq or Elasticsearch.
+  - **Contextual** – Enrich logs with useful metadata like `TraceId`, `UserId`, etc.
+
+---
+
+### 8.2. 🔧 Serilog Setup
+
+#### Install NuGet Packages
+```bash
+dotnet add package Serilog.AspNetCore
+dotnet add package Serilog.Sinks.Console
+dotnet add package Serilog.Sinks.File
+dotnet add package Serilog.Sinks.Seq
+```
+
+#### Configure in `Program.cs`
+```csharp
+Log.Logger = new LoggerConfiguration()
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "MyApp")
+    .WriteTo.Console()
+    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
+    .WriteTo.Seq("http://localhost:5341") // Optional
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+```
+
+---
+
+### 8.3. ✅ Logging Best Practices
+
+| Where            | What to Log                                | Level        |
+|------------------|---------------------------------------------|--------------|
+| **API Layer**     | Incoming request, status, traceId          | `Information`|
+| **Exception Handler** | Errors with context, stack trace      | `Error`      |
+| **Service Layer** | Business events, rules passed or failed    | `Debug` / `Info` |
+| **External APIs** | URL, status, latency                       | `Information`/`Warning`|
+
+---
+
+### 8.4. 🧱 Usage Examples
+
+#### Informational Log
+```csharp
+_logger.LogInformation("User {UserId} placed order {OrderId}", userId, orderId);
+```
+
+#### Error Log with Exception
+```csharp
+_logger.LogError(ex, "Error while processing order {OrderId}", order.Id);
+```
+
+---
+
+### 8.5. 🔍 Enriching Logs with Trace ID
+
+To automatically enrich every log with `TraceId`:
+```csharp
+app.Use(async (context, next) =>
+{
+    LogContext.PushProperty("TraceId", context.TraceIdentifier);
+    await next();
+});
+```
+
+---
+
+### 8.6. ⚠️ Logging Do’s and Don’ts
+
+| ✅ Do                             | ❌ Don’t                            |
+|----------------------------------|------------------------------------|
+| Log correlation/trace IDs        | Log passwords or secrets           |
+| Use structured messages          | Use string concatenation in logs   |
+| Mask PII before logging          | Dump entire objects or responses   |
+| Log intent and result            | Log only raw exceptions            |
+
 
 ---
 
