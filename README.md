@@ -11,7 +11,7 @@
 
 ## 1. 🏗️ Project Structure & Layering
 
-### Layered Architecture Overview
+### 📁 Layered Architecture Overview
 ```
 /src
   ├── API                // Exposes endpoints, maps DTOs, handles requests/responses
@@ -21,90 +21,108 @@
   └── Shared             // Common utilities, exceptions, logging, constants
 ```
 
-### Responsibilities by Layer
+### 🧱 Responsibilities by Layer
 
-| Layer         | Responsibility |
-|---------------|----------------|
-| **API**        | Controllers, DTO mapping, input validation |
-| **Application**| Orchestrates use cases, services, workflows |
-| **Domain**     | Core business models and rules |
-| **Infrastructure** | Implements repositories, EF DbContext, 3rd party integrations |
+| Layer           | Responsibility                                                        |
+|-----------------|------------------------------------------------------------------------|
+| **API**         | HTTP endpoints, request/response mapping, validation, error handling  |
+| **Application** | Coordinates use cases, services, workflows, and DTO mapping           |
+| **Domain**      | Core business rules, domain models, invariants                        |
+| **Infrastructure** | Implements repositories, EF Core DbContext, external service calls  |
+| **Shared**      | Reusable components, constants, utilities, common exceptions          |
 
 ---
 
 ## 2. 🧾 Naming Conventions
 
-### Classes
-- **Controllers:** `{Entity}Controller`
-- **Services:** `{Entity}Service`
-- **Interfaces:** `I{Entity}Service`
-- **Repositories:** `{Entity}Repository`
-- **DbContext:** `{ProjectName}DbContext`
+### 📦 Class Naming
 
-### Methods
-- Verb-based naming: `GetById`, `CreateAsync`, `UpdateStatus`
-- Async methods: suffix with `Async`
+| Type          | Convention             | Example                    |
+|---------------|------------------------|----------------------------|
+| Controller    | `{Entity}Controller`   | `UserController`           |
+| Service       | `{Entity}Service`      | `OrderService`             |
+| Interface     | `I{Entity}Service`     | `IOrderService`            |
+| Repository    | `{Entity}Repository`   | `ProductRepository`        |
+| DbContext     | `{Project}DbContext`   | `AppDbContext`             |
 
-### Files & Folders
-- Use PascalCase
-- Group by feature inside each layer
+### 🔤 Method Naming
+
+- Use **PascalCase** for all method names.
+- Prefix with **verbs**: `GetById`, `CreateAsync`, `UpdateStatusAsync`, `DeleteById`
+- Suffix async methods with `Async`.
+
+### 🗂️ File & Folder Naming
+
+- Use **PascalCase**: `UserService.cs`, `OrderController.cs`
+- Group by feature:
+  ```
+  /Services/Orders/OrderService.cs
+  /Controllers/Orders/OrderController.cs
+  /Repositories/Orders/OrderRepository.cs
+  ```
 
 ---
 
 ## 3. 💡 Coding Standards
 
-### 3.1. C# Language Conventions
-- Follow Microsoft C# conventions.
-- Prefer explicit typing over `var` unless it improves readability.
-- Use expression-bodied members for short methods or properties.
-- Use nullable reference types (`<Nullable>enable</Nullable>` in .csproj).
-- Consistent naming (PascalCase for classes, camelCase for variables, _camelCase for private fields).
+### 3.1. 🔤 C# Language Conventions
 
-### 3.2. Method Design Standards
+- Use explicit typing.
+- Use expression-bodied members:
+  ```csharp
+  public bool IsActive => Status == Status.Active;
+  ```
+- Enable nullable reference types:
+  ```xml
+  <Nullable>enable</Nullable>
+  ```
+
+#### ✅ Naming
+
+| Element         | Convention         | Example                   |
+|----------------|--------------------|---------------------------|
+| Classes         | PascalCase         | `UserService`             |
+| Interfaces      | Prefix with `I`    | `IUserRepository`         |
+| Methods         | PascalCase + Verb  | `GetUserByIdAsync()`      |
+| Private Fields  | `_camelCase`       | `_userRepository`         |
+
+---
+
+### 3.2. ⚙️ Method Design Standards
+
 ```csharp
-public async Task<ResponseDto> DoSomethingAsync(InputDto input)
+public async Task<ResponseDto> ProcessOrderAsync(OrderDto input)
 {
     // 1. Validate Input
-    // 2. Transform
+    // 2. Transform DTO → Domain
     // 3. Business Logic
-    // 4. Data Access
-    // 5. Return
+    // 4. Access Data Layer
+    // 5. Return Response DTO
 }
 ```
 
-### 3.3. Class Design Guidelines
-```csharp
-public class OrderService : IOrderService
-{
-    private readonly IOrderRepository _orderRepository;
-    private readonly INotificationService _notificationService;
+---
 
-    public OrderService(IOrderRepository orderRepository, INotificationService notificationService)
-    {
-        _orderRepository = orderRepository;
-        _notificationService = notificationService;
-    }
+### 3.3. 🧱 Class Design Guidelines
 
-    public async Task<OrderDto> CreateOrderAsync(OrderDto dto)
-    {
-        var order = new Order(dto.CustomerId, dto.Amount);
-        await _orderRepository.AddAsync(order);
-        await _notificationService.NotifyOrderCreated(order.Id);
-        return new OrderDto(order);
-    }
-}
-```
+- Use constructor injection.
+- SRP: one service per responsibility.
 
-### 3.4. Code Hygiene
-```csharp
-// ❌ Bad
-int a = 5; // assigning 5
+---
 
-// ✅ Good
-const int MaxRetryCount = 5;
-```
+### 3.4. 🧹 Code Hygiene
 
-### 3.5. Null Safety
+- Prefer meaningful names over comments.
+- Use early returns:
+  ```csharp
+  if (amount <= 0)
+      throw new ArgumentOutOfRangeException(nameof(amount));
+  ```
+
+---
+
+### 3.5. 🧼 Null Safety & Defensive Programming
+
 ```csharp
 if (string.IsNullOrWhiteSpace(name))
     throw new ArgumentException("Name is required", nameof(name));
@@ -112,16 +130,25 @@ if (string.IsNullOrWhiteSpace(name))
 
 ---
 
+### 3.6. ⚡ Async Guidelines
+
+- Avoid `async void` unless for event handlers.
+- Use `await` instead of `.Result`.
+
+---
+
 ## 4. 🗄️ Entity Framework Core Standards
 
-### 4.1. DbContext Design
+### 4.1. Design Philosophy
+
+- EF Core lives only in the Infrastructure layer.
+- Use Fluent API only; no annotations in domain models.
+
+### 4.2. DbContext Guidelines
 ```csharp
 public class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options)
-        : base(options) { }
-
-    public DbSet<Order> Orders => Set<Order>();
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -130,7 +157,10 @@ public class AppDbContext : DbContext
 }
 ```
 
-### 4.2. Fluent API Configuration
+---
+
+### 4.3. Entity Configuration (Fluent API)
+
 ```csharp
 public class OrderConfiguration : IEntityTypeConfiguration<Order>
 {
@@ -139,139 +169,103 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.ToTable("Orders");
         builder.HasKey(o => o.Id);
         builder.Property(o => o.TotalAmount).HasPrecision(18, 2);
-        builder.HasOne(o => o.Customer)
-               .WithMany(c => c.Orders)
-               .HasForeignKey(o => o.CustomerId);
     }
 }
 ```
 
-### 4.3. LINQ Query Example
-```csharp
-var orders = await _context.Orders
-    .AsNoTracking()
-    .Where(o => o.CustomerId == customerId)
-    .Select(o => new OrderDto
-    {
-        Id = o.Id,
-        Total = o.TotalAmount,
-        CreatedAt = o.CreatedDate
-    })
-    .ToListAsync();
+---
+
+### 4.4. Query Guidelines
+
+- Use `.AsNoTracking()` for read-only queries.
+- Use `.Select()` for projection.
+
+---
+
+### 4.5. Repository Usage
+
+- Use feature-specific repositories (`IOrderRepository`).
+- Do not expose `DbSet<T>` or query logic from services.
+
+---
+
+### 4.6. Migrations
+
+```bash
+dotnet ef migrations add AddOrderTable
 ```
 
-### 4.4. Use Method Syntax (Standard)
-```csharp
-// ✅ Method Syntax
-var users = await _context.Users
-    .Where(u => u.IsActive)
-    .OrderByDescending(u => u.CreatedAt)
-    .ToListAsync();
+Use `Database.Migrate()` only in development.
 
-// ❌ Query Syntax
-var users = (from u in _context.Users
-             where u.IsActive
-             select u).ToList();
+---
+
+### 4.7. Performance Best Practices
+
+- Use projection (`.Select()`).
+- Index frequently queried fields.
+- Paginate large results.
+
+---
+
+### 4.8. EF Core Testing
+
+- Use InMemory or SQLite for integration tests.
+- Use `HasData()` for seed data.
+
+---
+
+### 4.9. Pitfalls to Avoid
+
+| ❌ Pitfall        | ✅ Better Approach         |
+|------------------|----------------------------|
+| Annotations      | Fluent API                 |
+| Early `.ToList()`| Use deferred execution     |
+
+---
+
+### 4.10. LINQ Style
+
+```csharp
+// ✅ Method syntax only
+var users = _context.Users
+    .Where(u => u.IsActive)
+    .ToList();
 ```
 
 ---
 
 ## 5. 🔐 Security & Validation
 
-- Use FluentValidation for API layer input validation.
-- Never expose domain entities in API responses; use DTOs.
-- Use ASP.NET Core’s built-in policy-based authorization.
+- Validate all inputs using FluentValidation.
+- Use DTOs, never expose domain entities.
+- Use policy-based authorization in ASP.NET Core.
 
 ---
 
 ## 6. 🧪 Unit Testing Guidelines
 
-| Layer          | Test Type     |
-|----------------|---------------|
-| Domain         | Pure unit tests |
-| Application    | Service tests with mocks |
-| API            | Integration tests |
-| Infrastructure | In-memory integration tests |
+| Layer           | Type              | Notes                        |
+|-----------------|-------------------|------------------------------|
+| Domain          | Unit tests        | No mocks                     |
+| Application     | Unit tests        | Mock dependencies            |
+| API             | Integration tests | Test HTTP layer              |
+| Infrastructure  | EF tests          | Use InMemory or SQLite       |
 
 ---
 
 ## 7. ❌ Error Handling
 
-Use global exception handling via middleware in the API layer.
-
-```csharp
-public class GlobalExceptionMiddleware
-{
-    private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionMiddleware> _logger;
-
-    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
-
-    public async Task InvokeAsync(HttpContext context)
-    {
-        try
-        {
-            await _next(context);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unhandled exception occurred.");
-            await HandleExceptionAsync(context, ex);
-        }
-    }
-
-    private static Task HandleExceptionAsync(HttpContext context, Exception ex)
-    {
-        var statusCode = ex switch
-        {
-            ArgumentException => 400,
-            UnauthorizedAccessException => 401,
-            _ => 500
-        };
-
-        var error = new
-        {
-            title = "An error occurred.",
-            detail = ex.Message,
-            status = statusCode,
-            traceId = context.TraceIdentifier
-        };
-
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = statusCode;
-
-        return context.Response.WriteAsJsonAsync(error);
-    }
-}
-```
+- Use global exception middleware.
+- Return structured responses (with status, detail, traceId).
 
 ---
 
 ## 8. 📜 Logging Standards (Serilog)
 
-### 8.1. Setup
-```csharp
-Log.Logger = new LoggerConfiguration()
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .WriteTo.File("Logs/log-.txt", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
-
-builder.Host.UseSerilog();
-```
-
-### 8.2. Usage
-```csharp
-_logger.LogInformation("Creating order for user {UserId}", userId);
-_logger.LogError(ex, "Error processing order {OrderId}", orderId);
-```
-
-### 8.3. Best Practices
-- Use structured logging (JSON).
-- Enrich logs with trace ID and user context.
+- Use structured logs via Serilog.
+- Log request context with `TraceId`, user info.
 - Avoid logging sensitive data.
+- Use log levels consistently (`Information`, `Error`, `Debug`, etc.)
+
+---
 
