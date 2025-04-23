@@ -54,17 +54,21 @@
 ## 3. 💡 Coding Standards
 
 ### 3.1. C# Language Conventions
-Use explicit typing, expression-bodied members for simple methods, and consistent naming conventions across the codebase.
+- Follow Microsoft C# conventions.
+- Prefer explicit typing over `var` unless it improves readability.
+- Use expression-bodied members for short methods or properties.
+- Use nullable reference types (`<Nullable>enable</Nullable>` in .csproj).
+- Consistent naming (PascalCase for classes, camelCase for variables, _camelCase for private fields).
 
 ### 3.2. Method Design Standards
 ```csharp
 public async Task<ResponseDto> DoSomethingAsync(InputDto input)
 {
     // 1. Validate Input
-    // 2. Perform Transformations (if needed)
-    // 3. Execute Business Logic
-    // 4. Access Data via Repository
-    // 5. Return Response
+    // 2. Transform
+    // 3. Business Logic
+    // 4. Data Access
+    // 5. Return
 }
 ```
 
@@ -93,18 +97,14 @@ public class OrderService : IOrderService
 
 ### 3.4. Code Hygiene
 ```csharp
-// Bad
+// ❌ Bad
 int a = 5; // assigning 5
 
-// Good
+// ✅ Good
 const int MaxRetryCount = 5;
 ```
 
 ### 3.5. Null Safety
-```xml
-<Nullable>enable</Nullable>
-```
-
 ```csharp
 if (string.IsNullOrWhiteSpace(name))
     throw new ArgumentException("Name is required", nameof(name));
@@ -160,22 +160,27 @@ var orders = await _context.Orders
     .ToListAsync();
 ```
 
-### 4.4. Use Method Syntax
+### 4.4. Use Method Syntax (Standard)
 ```csharp
 // ✅ Method Syntax
 var users = await _context.Users
     .Where(u => u.IsActive)
     .OrderByDescending(u => u.CreatedAt)
     .ToListAsync();
+
+// ❌ Query Syntax
+var users = (from u in _context.Users
+             where u.IsActive
+             select u).ToList();
 ```
 
 ---
 
 ## 5. 🔐 Security & Validation
 
-- Validate input in the API layer using libraries like **FluentValidation**.
-- Never expose domain entities directly in API responses. Use **DTOs**.
-- Implement **policy-based authorization** for protected endpoints.
+- Use FluentValidation for API layer input validation.
+- Never expose domain entities in API responses; use DTOs.
+- Use ASP.NET Core’s built-in policy-based authorization.
 
 ---
 
@@ -185,14 +190,15 @@ var users = await _context.Users
 |----------------|---------------|
 | Domain         | Pure unit tests |
 | Application    | Service tests with mocks |
-| API            | Integration tests (controller + middleware) |
-| Infrastructure | Integration tests with in-memory database |
+| API            | Integration tests |
+| Infrastructure | In-memory integration tests |
 
 ---
 
 ## 7. ❌ Error Handling
 
-### Global Exception Middleware
+Use global exception handling via middleware in the API layer.
+
 ```csharp
 public class GlobalExceptionMiddleware
 {
@@ -218,19 +224,19 @@ public class GlobalExceptionMiddleware
         }
     }
 
-    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private static Task HandleExceptionAsync(HttpContext context, Exception ex)
     {
-        var statusCode = exception switch
+        var statusCode = ex switch
         {
-            ArgumentException => StatusCodes.Status400BadRequest,
-            UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
-            _ => StatusCodes.Status500InternalServerError
+            ArgumentException => 400,
+            UnauthorizedAccessException => 401,
+            _ => 500
         };
 
-        var errorResponse = new
+        var error = new
         {
-            title = "An error occurred while processing your request.",
-            detail = exception.Message,
+            title = "An error occurred.",
+            detail = ex.Message,
             status = statusCode,
             traceId = context.TraceIdentifier
         };
@@ -238,16 +244,16 @@ public class GlobalExceptionMiddleware
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = statusCode;
 
-        return context.Response.WriteAsJsonAsync(errorResponse);
+        return context.Response.WriteAsJsonAsync(error);
     }
 }
 ```
 
 ---
 
-## 8. 📜 Logging with Serilog
+## 8. 📜 Logging Standards (Serilog)
 
-### Setup in Program.cs
+### 8.1. Setup
 ```csharp
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
@@ -258,8 +264,14 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 ```
 
-### Usage Examples
+### 8.2. Usage
 ```csharp
-_logger.LogInformation("Creating order for user {UserId} with amount {Amount}", userId, amount);
-_logger.LogError(ex, "Error occurred while processing order {OrderId}", orderId);
+_logger.LogInformation("Creating order for user {UserId}", userId);
+_logger.LogError(ex, "Error processing order {OrderId}", orderId);
 ```
+
+### 8.3. Best Practices
+- Use structured logging (JSON).
+- Enrich logs with trace ID and user context.
+- Avoid logging sensitive data.
+
