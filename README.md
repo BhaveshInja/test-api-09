@@ -11,16 +11,6 @@
 
 ## 1. 🏗️ Project Structure & Layering
 
-### 📁 Layered Architecture Overview
-```
-/src
-  ├── API                // Exposes endpoints, maps DTOs, handles requests/responses
-  ├── Application        // Business logic, use cases, services
-  ├── Domain             // Entities, value objects, enums, interfaces
-  ├── Infrastructure     // Data access, external service integrations
-  └── Shared             // Common utilities, exceptions, logging, constants
-```
-
 ### 🧱 Responsibilities by Layer
 
 | Layer           | Responsibility                                                        |
