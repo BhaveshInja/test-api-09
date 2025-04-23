@@ -733,4 +733,164 @@ app.Use(async (context, next) =>
 
 
 ---
+## 9. 📡 API Endpoints & Routing Standards
+
+### 9.1. 🎯 Endpoint Naming & URL Design
+
+- Use **plural nouns** for resource endpoints:
+  ```
+  GET    /api/users
+  POST   /api/users
+  GET    /api/users/{id}
+  ```
+- Use **kebab-case** when needed:
+  ```
+  GET /api/payment-transactions
+  ```
+- Avoid verbs in URLs; rely on HTTP methods.
+
+---
+
+### 9.2. 🚦 HTTP Methods & Status Codes
+
+| Operation                                | HTTP Method            | Response Code                      |
+| ---------------------------------------- | ---------------------- | ---------------------------------- |
+| Create resource                          | `POST`                 | `201 Created`                      |
+| Retrieve all resources                   | `GET`                  | `200 OK`                           |
+| Retrieve specific resource               | `GET`                  | `200 OK` / `404 Not Found`         |
+| Update entire resource                   | `PUT`                  | `200 OK` / `204 No Content`        |
+| Partially update resource                | `PATCH`                | `200 OK` / `204 No Content`        |
+| Delete resource                          | `DELETE`               | `204 No Content` / `404 Not Found` |
+| Validation failure                       | `POST`, `PUT`, `PATCH` | `400 Bad Request`                  |
+| Unauthorized access                      | `Any`                  | `401 Unauthorized`                 |
+| Forbidden (authenticated, no permission) | `Any`                  | `403 Forbidden`                    |
+| Resource not found                       | `GET`, `PUT`, `DELETE` | `404 Not Found`                    |
+| Conflict (e.g., duplicate key)           | `POST`, `PUT`          | `409 Conflict`                     |
+| Server error                             | `Any`                  | `500 Internal Server Error`        |
+
+---
+
+### 9.3. 📑 Controller Structure
+
+```csharp
+[ApiController]
+[Route("api/Users")]
+public class UsersController : ControllerBase
+{
+    private readonly IUserService _userService;
+
+    public UsersController(IUserService userService)
+    {
+        _userService = userService;
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<UserDto>> GetById(int id)
+    {
+        var user = await _userService.GetUserByIdAsync(id);
+        if (user is null) return NotFound();
+        return Ok(user);
+    }
+}
+```
+
+---
+
+### 9.4. 🧾 Routing Conventions
+
+- Use attribute routing.
+- Explicit HTTP verb attributes.
+
+```csharp
+[HttpPost("{id}/activate")]
+public IActionResult ActivateUser(int id) { ... }
+```
+
+---
+
+### 9.5. 📊 Versioning Strategy
+
+- Use URL versioning:
+  ```
+  /api/v1/users
+  ```
+- Alternative: header-based versioning.
+
+---
+
+### 9.6. 🔄 Pagination & Filtering
+
+```
+GET /api/orders?page=2&pageSize=25&status=active
+```
+
+---
+
+### 9.7. 📜 Response Format
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 2,
+    "pageSize": 25,
+    "totalItems": 150,
+    "totalPages": 6
+  }
+}
+```
+
+---
+
+### 9.8. 🔍 Logging & Monitoring
+
+```csharp
+_logger.LogInformation("GET /api/users/{UserId} returned {StatusCode} in {Elapsed}ms", userId, statusCode, elapsed);
+```
+
+---
+
+### 9.9. 🛡️ Security & Validation
+
+```csharp
+[Authorize(Policy = "AdminOnly")]
+[HttpDelete("{id}")]
+public async Task<IActionResult> DeleteUser(int id) { ... }
+```
+
+---
+
+### 9.10. 🚥 Health Checks
+
+```csharp
+builder.Services.AddHealthChecks()
+    .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+    .AddRedis(builder.Configuration["Redis:ConnectionString"]);
+
+app.MapHealthChecks("/health");
+```
+
+---
+
+### 9.11. 🌐 CORS
+
+```csharp
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendApp", policy =>
+    {
+        policy.WithOrigins("https://example.com")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+app.UseCors("FrontendApp");
+```
+
+```csharp
+[EnableCors("FrontendApp")]
+[HttpGet]
+public IActionResult GetData() { ... }
+```
 
